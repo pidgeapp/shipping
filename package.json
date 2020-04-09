@@ -22,6 +22,6 @@
     "nonce": "^1.0.4",
     "request": "^2.88.2",
     "request-promise": "^4.2.5",
-    "shopify-api-node": "^3.3.0"
+    "shopify-api-node": "^3.3.1"
   }
 }

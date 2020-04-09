@@ -13,8 +13,9 @@ var logger = require('morgan');
 var bodyParser = require('body-parser');
 var hbs = require('express-handlebars');
 var mysql = require('mysql');
-
-
+var db = require('./db_connection');
+ var shopifyAPI = require('shopify-api-node');
+ 
 var router = express.Router();
 
 
@@ -33,8 +34,9 @@ var indexRouter = require('./routes/index');
 
 const apiKey = process.env.SHOPIFY_API_KEY;
 const apiSecret = process.env.SHOPIFY_API_SECRET;
-const scopes = 'read_products';
-const forwardingAddress = "https://269b6fbc.ngrok.io"; // Replace this with your HTTPS Forwarding address
+const scopes =  'write_shipping';
+const forwardingAddress = "https://33f80cfa.ngrok.io"; // Replace this with your HTTPS Forwarding address
+//const forwardingAddress = "https://shopify.pidge.in"; // Replace this with your HTTPS Forwarding address
 
 // view engine setup
 app.engine('hbs', hbs({extname: 'hbs', defaultLayout: 'layout', layoutsDir: __dirname +'/views/'}));
@@ -78,11 +80,11 @@ app.get('/shopify', (req, res) => {
 
 app.get('/shopify/callback', (req, res) => {
   const { shop, hmac, code, state } = req.query;
-/*  const stateCookie = cookie.parse(req.headers.cookie).state;
+  const stateCookie = cookie.parse(req.headers.cookie).state;
 
   if (state !== stateCookie) {
     return res.status(403).send('Request origin cannot be verified');
-  }*/
+  }
 
   if (shop && hmac && code) {
     const map = Object.assign({}, req.query);
@@ -133,36 +135,14 @@ request.get(shopRequestUrl, { headers: shopRequestHeaders })
 	var shopname = obj.shop.name;
 	var shopurl = obj.shop.domain;
 	var datetime = new Date();
-	/*var sql = 'SELECT * FROM pidge_client WHERE client_name ='+ mysql.escape(shopname) ;
-	db.query(sql, function (err, result) {
-			if (result) {
-				result.forEach((value) => {
-				if(value.status == 'inactive'){
-				res.redirect('/sucess');
-				res.end();
-				}else{
-					res.redirect('/test');
-					res.end();
-				}
-				});
-			}else{*/
- /* var sql1 = "INSERT INTO pidge_client (client_name, shop_name,status,created_at,modified_at) VALUES ?";
-  var values = [
-    [shopname, shopurl , 'inactive',datetime,datetime]
-	];
-  db.query(sql1,[values], function (err, result) {
-    if (err) throw err;
-   
-	//res.render('sucess', {  });
-	res.redirect('/sucess');
-	res.end();
-  });*/
-		/*	}
-			
-	});*/
+	var store_id= obj.shop.id;
 	
-	res.redirect('/sucess/?shopname='+ shopname +'&shopurl='+shopurl);
+
+	 res.redirect('/sucess/?shopname='+ shopname +'&shopurl='+shopurl+'&store_id='+store_id);
 	res.end();
+	
+	
+		
 	//res.redirect('/?shopname='+ shopname);
 	
 	//res.end();
@@ -187,6 +167,7 @@ request.get(shopRequestUrl, { headers: shopRequestHeaders })
 });
 app.get('/', (req, res) => {
 	var shopname = req.query.shopname;
+	 var datetime = new Date();
 	console.log(shopname);
 	var sql = 'SELECT * FROM pidge_client WHERE client_name ='+ mysql.escape(shopname) ;
 		db.query(sql, function (err, result) {
@@ -195,12 +176,15 @@ app.get('/', (req, res) => {
 				if(value.status == 'inactive'){
 				res.render('sucess', {  });
 				}else{
+				  
 				res.render('test', {  });	
 				}
 				});
 			}else{
 				res.render('index', { shopname : req.query.shopname  });
 			}
+			
+			
 			
 		});
 	
@@ -211,7 +195,7 @@ app.get('/', (req, res) => {
 
 app.post('/shopify', function(req, res, next) {
 	var shopurl = req.body.url;
-	console.log(shopurl);
+	//console.log(shopurl);
 	
 	if (shopurl) {
     const state = nonce();
@@ -248,23 +232,39 @@ app.post('/shopify', function(req, res, next) {
 		
 	
 });
+
 app.get('/sucess', (req, res) => {
+	
+	var store_id = req.query.store_id;				
 	var shopname = req.query.shopname;
 	var shopurl = req.query.shopurl;
 	var datetime = new Date();
-console.log(shopurl);
- /* var sql = "INSERT INTO pidge_client (client_name, shop_name,status,created_at,modified_at) VALUES ?";
-  var values = [
-    [shopname, shopurl , 'inactive',datetime,datetime]
-	];
-  db.query(sql,[values], function (err, result) {
-    if (err) throw err;
-   
-	res.render('sucess', {  });
-	
-	
-  });*/
+	console.log(store_id);
 
+	var add_client_url = "https://uat-api.pidge.in/v1.0/shopify/shopify-client";
+	
+
+request.post(
+  add_client_url,
+  {
+    json: {
+        store_id: store_id,
+		store_url: shopurl,
+		customer_name: shopname,
+		status:1,
+    }
+  },
+  (error, res, body) => {
+    if (error) {
+      console.error(error)
+      return
+    }
+    console.log(`statusCode: ${res.statusCode}`)
+    console.log(body)
+  }
+)
+  
+/*
 	var sql = 'SELECT * FROM pidge_client WHERE client_name ='+ mysql.escape(shopname) ;
 	db.query(sql, function (err, result) {
 		
@@ -276,8 +276,9 @@ console.log(shopurl);
 				res.render('sucess', {  });
 				
 				}else{
-					
-				res.render('test', {  });
+						
+			
+				res.render('test', { shopname : req.query.shopname  });
 				}
 				});
 			}
@@ -294,10 +295,17 @@ console.log(shopurl);
 	
   });
 			}
-	});
+	});*/
 //	res.render('sucess', {  });
 	
 });
+app.get('/shipping', (req, res) => {
+	
+	res.render('pidge_shipping_rates', {  });
+	
+});
+
+
 app.get('/admin', (req, res) => {
 	
 	res.render('admin/login', {  });
@@ -361,3 +369,44 @@ app.get('/admin/dashboard', function(req, res, next) {
 //	res.redirect('/admin/dashboard/');
 	 
  });
+ 
+ 
+app.get('/checkout', function(req, res){
+	
+
+var shopify = new shopifyAPI({
+  shopName: 'testallshop.myshopify.com',
+  accessToken: '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'
+});
+/*
+var get_client =  "https://uat-api.pidge.in/v1.0/shopify/shopify-client?store_id=25700859959";
+
+request.get(get_client, { headers: 'application/json' })
+.then((response) => {
+	console.log(response);
+})
+*/
+var add_client_url = "https://uat-api.pidge.in/v1.0/shopify/shopify-client ";
+
+
+request.post(
+  add_client_url,
+  {
+    json: {
+      store_id: 1007,
+	  store_url: "testallshop11.myshopify.com",
+	  customer_name: "Ami",
+	  status:1
+    }
+  },
+  (error, res, body) => {
+    if (error) {
+      console.error(error)
+      return
+    }
+    console.log(`statusCode: ${res.statusCode}`)
+    console.log(body)
+  }
+)
+
+});
